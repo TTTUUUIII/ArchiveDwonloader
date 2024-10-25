@@ -8,6 +8,7 @@ import org.archive.spider.util.PathUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
@@ -125,9 +126,9 @@ public class Main {
             Logger.waring("No resource specified, do nothing.");
             return false;
         }
-        Path outPath = Paths.get(out);
-        if (!outPath.toFile().exists()) {
-            Logger.error("Failed! Out directory not exists! \"" + outPath.toAbsolutePath() + "\"");
+        File outputDirectory = Paths.get(out).toFile();
+        if (!outputDirectory.exists() && !outputDirectory.mkdir()) {
+            Logger.error("Unable create output directory in \"" + outputDirectory.getAbsolutePath() + "\"");
             return false;
         }
         return true;
