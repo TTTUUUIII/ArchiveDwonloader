@@ -2,7 +2,7 @@ package org.archive.spider.download;
 
 import okhttp3.*;
 import org.archive.spider.util.ByteFormatter;
-import org.archive.spider.util.ColoredText;
+import org.archive.spider.util.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,7 +18,7 @@ public class DownloadManager {
 
     private static final int MAX_FILENAME_LENGTH = 50;
 
-    private Proxy proxy;
+    private final Proxy proxy;
     private final OkHttpClient client;
     private int index = 1;
     public DownloadManager() {
@@ -66,13 +66,13 @@ public class DownloadManager {
                                 String progress = "???";
                                 String size = "???";
                                 if (filename.length() > MAX_FILENAME_LENGTH) {
-                                    filename = filename.substring(0, MAX_FILENAME_LENGTH) + "...";
+                                    filename = filename.substring(0, MAX_FILENAME_LENGTH - 3) + "...";
                                 }
                                 if (total > 0) {
                                     progress = String.format(Locale.US, "%.2f", (float) read / total * 100);
                                     size = ByteFormatter.format(total);
                                 }
-                                System.out.printf("\r %-5d %-50s %-10s %s%10s%%%s", index, filename, size, ColoredText.CYAN, progress, ColoredText.RESET);
+                                System.out.printf("\r %-5d %-50s %-10s %s%10s%%%s", index, filename, size, Logger.CYAN, progress, Logger.RESET);
                             }
                         }
                         System.out.println();

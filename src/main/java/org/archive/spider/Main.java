@@ -3,23 +3,23 @@ package org.archive.spider;
 import org.archive.spider.core.Node;
 import org.archive.spider.core.Spider;
 import org.archive.spider.download.DownloadManager;
-import org.archive.spider.util.ColoredText;
+import org.archive.spider.util.Logger;
 import org.archive.spider.util.PathUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class Main {
     private static String[] focus;
     private static String out = System.getProperty("user.dir");
     private static Proxy proxy = Proxy.NO_PROXY;
-    private static String resource = null;
+    private static final Set<String> resources = new LinkedHashSet<>();
     private final static String XPATH = "//*[@id=\"maincontent\"]/div/div/pre/table/tbody/tr[position()>1]/td/a[1]";
 
     private static class Kernel {
@@ -27,15 +27,17 @@ public class Main {
         private final DownloadManager dm = new DownloadManager(proxy);
 
         public void run() {
-            System.out.println("Searching in \"" + resource + "\" ...");
-            Node node = onSearchNode(resource, XPATH);
-            if (node != null) {
-                int[] statistics = onStatistics(node);
-                System.out.printf("Total: %-5d\tFocus: %s%-5d%s\n\n", statistics[0], ColoredText.GREEN, statistics[1], ColoredText.RESET);
-                dm.resetIndex();
-                onRecursiveNode(node, null);
-            } else {
-                System.out.println(ColoredText.YELLOW + "Sorry, no resources found in \"" + resource + "\"" + ColoredText.RESET);
+            for (String resource : resources) {
+                Logger.message("Searching in \"" + resource + "\" ...");
+                Node node = onSearchNode(resource, XPATH);
+                if (node != null) {
+                    int[] statistics = onStatistics(node);
+                    System.out.printf("Total: %-5d\tFocus: %s%-5d%s\n\n", statistics[0], Logger.GREEN, statistics[1], Logger.RESET);
+                    dm.resetIndex();
+                    onRecursiveNode(node, null);
+                } else {
+                    Logger.waring("Sorry, no resources found in \"" + resource + "\"");
+                }
             }
         }
 
@@ -52,7 +54,7 @@ public class Main {
             if (basePath == null) basePath = "";
             Path directoryPath = PathUtils.decode(Paths.get(out, basePath, node.name));
             if (!directoryPath.toFile().exists() && !directoryPath.toFile().mkdir()) {
-                System.err.printf("Unable create directory in \"%s\"\n", directoryPath);
+                Logger.error("Unable create directory in \"%s" + directoryPath + "\"");
                 return;
             }
             if (node.data instanceof List<?>) {
@@ -74,10 +76,10 @@ public class Main {
                 if (!filePath.toFile().exists()) {
                     dm.download(url, filePath);
                 } else {
-                    System.out.println(ColoredText.encode(filePath + " already exists, skip.", ColoredText.YELLOW));
+                    Logger.waring(filePath + " already exists, skip.");
                 }
             } catch (IOException e) {
-                System.out.println(ColoredText.encode("Failed download \"" + filePath + "\"", ColoredText.RED));
+                Logger.waring("Failed download \"" + filePath + "\"\n" + e);
             }
         }
 
@@ -119,11 +121,16 @@ public class Main {
     }
 
     private static boolean checkArgs() {
-        if (resource == null) {
-            System.err.println(ColoredText.RED + "--resource not specified, do nothing!" + ColoredText.RESET);
+        if (resources.isEmpty()) {
+            Logger.waring("No resource specified, do nothing.");
             return false;
         }
-        return Paths.get(out).toFile().exists();
+        Path outPath = Paths.get(out);
+        if (!outPath.toFile().exists()) {
+            Logger.error("Failed! Out directory not exists! \"" + outPath.toAbsolutePath() + "\"");
+            return false;
+        }
+        return true;
     }
 
     private static void parseArgs(String[] args) {
@@ -131,8 +138,21 @@ public class Main {
         while (index < args.length) {
             final String[] option = args[index].split("=");
             switch (option[0]) {
-                case "--resource":
-                    resource = option[1];
+                case "--add-resource":
+                    resources.add(PathUtils.addSeparate(option[1]));
+                    break;
+                case "--list-resource":
+                    try {
+                        List<String> list = Files.readAllLines(Paths.get(option[1]));
+                        for (String item : list) {
+                            if (item.isEmpty()) {
+                                continue;
+                            }
+                            resources.add(PathUtils.addSeparate(item));
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace(System.err);
+                    }
                     break;
                 case "--out":
                     out = option[1];
