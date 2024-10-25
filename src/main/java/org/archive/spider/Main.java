@@ -163,7 +163,9 @@ public class Main {
                     break;
                 case "--http-proxy":
                     proxy = parseProxy(option[1]);
+                    break;
                 default:
+                    throw new RuntimeException("Unknown option \"" + option[0] + "\"");
             }
             index++;
         }
