@@ -1,5 +1,5 @@
 ```text
-java -jar ArchiveDownloader-$version.jar --resource=xxxx [options]
+java -jar ArchiveDownloader-$version.jar --add-resource=xxxx [options]
 
 Options:
     --add-resource          --add-resource=taylor-swift-midnights
