@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
     private static String[] focus;
@@ -22,24 +23,32 @@ public class Main {
     private static Proxy proxy = Proxy.NO_PROXY;
     private static final Set<String> resources = new LinkedHashSet<>();
     private final static String XPATH = "//*[@id=\"maincontent\"]/div/div/pre/table/tbody/tr[position()>1]/td/a[1]";
+    private static int jobs = 1;
 
-    private static class Kernel {
+    private static class Kernel implements DownloadManager.DownloadEventListener {
         private final Spider spider = new Spider("https://archive.org/download/", proxy);
-        private final DownloadManager dm = new DownloadManager(proxy);
+        private final DownloadManager dm = new DownloadManager(jobs, this, proxy);
+        private final AtomicInteger total = new AtomicInteger(0);
+        private final AtomicInteger success = new AtomicInteger(0);
+        private final AtomicInteger failure = new AtomicInteger(0);
+        private int skip = 0;
 
         public void run() {
+            ArrayList<Node> nodes = new ArrayList<>();
             for (String resource : resources) {
                 Logger.message("Searching in \"" + resource + "\" ...");
                 Node node = onSearchNode(resource, XPATH);
                 if (node != null) {
-                    int[] statistics = onStatistics(node);
-                    System.out.printf("Total: %-5d\tFocus: %s%-5d%s\n\n", statistics[0], Logger.GREEN, statistics[1], Logger.RESET);
-                    dm.resetIndex();
-                    onRecursiveNode(node, null);
+                    int[] statistics = statistics(node);
+                    System.out.printf("Total: %-5d\tFocus: %s%-5d%s\n", statistics[0], Logger.GREEN, statistics[1], Logger.RESET);
+                    total.addAndGet(statistics[1]);
+                    nodes.add(node);
                 } else {
                     Logger.waring("Sorry, no resources found in \"" + resource + "\"");
                 }
             }
+            System.out.println();
+            nodes.forEach(this::onRecursiveNode);
         }
 
         private @Nullable Node onSearchNode(String path, String xpath) {
@@ -49,6 +58,10 @@ public class Main {
                 e.printStackTrace(System.err);
             }
             return null;
+        }
+
+        private void onRecursiveNode(@NotNull Node node) {
+            onRecursiveNode(node, null);
         }
 
         private void onRecursiveNode(@NotNull Node node, @Nullable String basePath) {
@@ -77,20 +90,27 @@ public class Main {
                 if (!filePath.toFile().exists()) {
                     dm.download(url, filePath);
                 } else {
+                    skip++;
                     Logger.waring(filePath + " already exists, skip.");
                 }
-            } catch (IOException e) {
-                Logger.waring("Failed download \"" + filePath + "\"\n" + e);
+            } catch (MalformedURLException e) {
+                e.printStackTrace(System.err);
+                failure.incrementAndGet();
             }
         }
 
-        private int[/*total, focus*/] onStatistics(Node node) {
+        private void onStatistics() {
+            dm.shutdown();
+            Logger.message(String.format("\nTotal: %s%d%s, Skip: %s%d%s, Success: %s%d%s, Failure: %s%d%s", Logger.CYAN, total.get(), Logger.RESET, Logger.YELLOW, skip, Logger.RESET, Logger.GREEN, success.get(), Logger.RESET, Logger.RED, failure.get(), Logger.RESET));
+        }
+
+        private int[] statistics(Node node) {
             int[] statistics = new int[]{0, 0};
             if (node.type == Node.TYPE_FILE) {
                 return isFocus(node) ? new int[]{1, 1} : new int[] {1, 0};
             } else {
                 for (Node it: (List<Node>) node.data) {
-                    int[] tmp = onStatistics(it);
+                    int[] tmp = statistics(it);
                     statistics[0] += tmp[0];
                     statistics[1] += tmp[1];
                 }
@@ -110,6 +130,23 @@ public class Main {
                 }
             }
             return false;
+        }
+
+        @Override
+        public void onDownloadFailure(int jobId, @Nullable String filename, @Nullable URL url, Exception e) {
+            failure.incrementAndGet();
+        }
+
+        @Override
+        public void onDownloadSuccessful(int jobId, @Nullable String filename, @Nullable URL url) {
+            success.incrementAndGet();
+        }
+
+        @Override
+        public void onJobCompleted(int jobId) {
+            if (success.get() + failure.get() + skip == total.get()) {
+                onStatistics();
+            }
         }
     }
 
@@ -163,6 +200,9 @@ public class Main {
                     break;
                 case "--http-proxy":
                     proxy = parseProxy(option[1]);
+                    break;
+                case "--jobs":
+                    jobs = Integer.parseInt(option[1]);
                     break;
                 default:
                     throw new RuntimeException("Unknown option \"" + option[0] + "\"");

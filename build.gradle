@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'org.archive'
-def versionName = "1.0-alpha"
+def versionName = "1.1-alpha"
 if (getGitBranch() == "main") {
     version = versionName
 } else {
@@ -32,6 +32,7 @@ jar {
 }
 
 dependencies {
+    implementation 'me.tongfei:progressbar:0.10.1'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'org.jsoup:jsoup:1.15.3'
     testImplementation platform('org.junit:junit-bom:5.10.0')
