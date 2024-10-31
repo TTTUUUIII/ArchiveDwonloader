@@ -180,6 +180,7 @@ public class Main {
                     resources.add(PathUtils.addSeparate(option[1]));
                     break;
                 case "--checklist":
+                case "--list-resource":
                     try {
                         List<String> list = Files.readAllLines(Paths.get(option[1]));
                         for (String item : list) {
