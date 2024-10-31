@@ -7,4 +7,5 @@ Options:
     --out                   --out=/home/username/Download
     --focus                 --focus=mp3,png
     --http-proxy            --http-proxy=http://hostname:port
+    --jobs                  --jobs=32
 ```
