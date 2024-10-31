@@ -179,7 +179,7 @@ public class Main {
                 case "--add-resource":
                     resources.add(PathUtils.addSeparate(option[1]));
                     break;
-                case "--list-resource":
+                case "--checklist":
                     try {
                         List<String> list = Files.readAllLines(Paths.get(option[1]));
                         for (String item : list) {
