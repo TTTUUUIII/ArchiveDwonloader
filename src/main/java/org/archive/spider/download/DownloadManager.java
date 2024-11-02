@@ -3,6 +3,7 @@ package org.archive.spider.download;
 import me.tongfei.progressbar.*;
 import okhttp3.*;
 import org.archive.spider.util.Logger;
+import org.archive.spider.util.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jsoup.HttpStatusException;
@@ -56,23 +57,35 @@ public class DownloadManager {
     }
 
     private ProgressBarBuilder newProgressBarBuilder(int jobId, @NotNull String filename, long max) {
-        return new ProgressBarBuilder()
-                .setStyle(
-                        new ProgressBarStyleBuilder()
-                                .refreshPrompt("\r")
-                                .leftBracket(Logger.GREEN)
-                                .delimitingSequence("\u001b[90m")
-                                .rightBracket("\u001b[0m")
-                                .block('━')
-                                .space('━')
-                                .fractionSymbols(" ╸")
-                                .rightSideFractionSymbol('╺')
-                                .build()
-                )
+        ProgressBarBuilder builder = new ProgressBarBuilder()
                 .setInitialMax(max)
                 .setMaxRenderedLength(100)
                 .setUnit("MB", 1048576)
                 .setTaskName(String.format("%-5d %s", jobId, filename));
+        if (SystemUtils.isWindows()) {
+            builder.setStyle(new ProgressBarStyleBuilder()
+                    .refreshPrompt("\r")
+                    .leftBracket(Logger.GREEN + "│")
+                    .delimitingSequence("")
+                    .rightBracket("│" + Logger.RESET)
+                    .block('█')
+                    .space(' ')
+                    .fractionSymbols(" ▏▎▍▌▋▊▉")
+                    .rightSideFractionSymbol(' ')
+                    .build());
+        } else {
+            builder.setStyle(new ProgressBarStyleBuilder()
+                    .refreshPrompt("\r")
+                    .leftBracket(Logger.GREEN)
+                    .delimitingSequence("\u001b[90m")
+                    .rightBracket(Logger.RESET)
+                    .block('━')
+                    .space('━')
+                    .fractionSymbols(" ╸")
+                    .rightSideFractionSymbol('╺')
+                    .build());
+        }
+        return builder;
     }
 
     private class DownloadTask implements Runnable {

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'org.archive'
-def versionName = "1.1-alpha"
+def versionName = "1.2-alpha"
 if (getGitBranch() == "main") {
     version = versionName
 } else {
